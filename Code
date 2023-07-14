@@ -1,0 +1,143 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+from sklearn import linear_model
+from sklear.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+
+Ad_df = pd.read_csv("E:\Huy\Personal\School\MIT\ADS\Prework\Machine Learning\Advertising.csv")
+print ('Rows and columns of data :', Ad_df.shape)
+print('-'*70)
+print (Ad_df.head())
+print('-'*70)
+print ('Drop the first column as it is just the index\n')
+Ad_df.drop(columns = 'Unnamed: 0', inplace=True)
+print (Ad_df)
+print('-'*70)
+print (Ad_df.info())
+print('-'*70)
+
+Sales = Ad_df.Sales.values.reshape(len(Ad_df['Sales']),1)
+TV = Ad_df.TV.values.reshape(len(Ad_df['TV']),1)
+Newspaper = Ad_df.Newspaper.values.reshape(len(Ad_df['Newspaper']),1)
+Radio = Ad_df.Radio.values.reshape(len(Ad_df['Radio']),1)
+print ('Variable Separation Sample View for TV \n')
+print(Ad_df['TV'].head())
+print('-'*70)
+
+print ('Fit simple linear regression model with each feature:\nMetrics:\n\n')
+tv_model = linear_model.LinearRegression()
+tv_model.fit(TV,Sales)
+coeffs_tv = np.array(list(tv_model.intercept_.flatten()) + list(tv_model.coef_.flatten()))
+
+radio_model = linear_model.LinearRegression()
+radio_model.fit(Radio,Sales)
+coeffs_radio = np.array(list(radio_model.intercept_.flatten()) + list(radio_model.coef_.flatten()))
+
+newspaper_model = linear_model.LinearRegression()
+newspaper_model.fit(Newspaper,Sales)
+coeffs_newspaper = np.array(list(newspaper_model.intercept_.flatten()) + list(newspaper_model.coef_.flatten()))
+
+dict_Sales = {}
+dict_Sales['TV'] = coeffs_tv
+dict_Sales['Radio'] = coeffs_radio
+dict_Sales['Newspaper'] = coeffs_newspaper
+
+tv_rsq = tv_model.score(TV,Sales)
+radio_rsq = radio_model.score(Radio, Sales)
+newspaper_rsq = newspaper_model.score(Newspaper, Sales)
+list_rsq = [tv_rsq, radio_rsq, newspaper_rsq]
+
+metric_df_slr = pd.DataFrame(dict_Sales)
+metric_df_slr.index = ['Intercept', 'Coefficient']
+metric_df_slr.loc['R-Squared']= list_rsq
+print (metric_df_slr) 
+print ()
+print ('Tv has the hights R^2 value. 62% of the target variance can be explained '
+       'by the TV feature in the regression model.')
+print('-'*70)
+
+#visualizing the regression plot using a best fit line
+plt.scatter(TV, Sales, color='red')
+plt.xlabel('TV Ads')
+plt.ylabel('Sales')
+plt.plot(TV, tv_model.predict(TV), color= 'blue', linewidth = 3)
+plt.show()
+
+plt.scatter(Radio, Sales, color='red')
+plt.xlabel('Radio Ads')
+plt.ylabel('Sales')
+plt.plot(Radio, radio_model.predict(Radio), color= 'blue', linewidth = 3)
+plt.show()
+
+plt.scatter(Newspaper, Sales, color='red')
+plt.xlabel('Newspaper Ads')
+plt.ylabel('Sales')
+plt.plot(Newspaper, newspaper_model.predict(Newspaper), color= 'blue', linewidth = 3)
+plt.show()
+
+print('Multiple Linear Regression:\n\n')
+mlr_model = linear_model.LinearRegression()
+mlr_model.fit(Ad_df[['TV', 'Radio', 'Newspaper']], Ad_df['Sales'])
+Ad_df['Sales_Predicted'] = mlr_model.predict(Ad_df[['TV', 'Radio', 'Newspaper']])
+Ad_df['Error'] = (Ad_df['Sales_Predicted'] - Ad_df['Sales'])**2
+MSE_mlr = Ad_df['Error'].mean()
+# Squared-Errors between the predicted and actual Sales values
+rsq_mlr = mlr_model.score(Ad_df[['TV', 'Radio', 'Newspaper']], Ad_df['Sales'])
+print ('Mean Squared Error: ', MSE_mlr)
+print ('R-Square Error: ', rsq_mlr)
+print ('\nR-Squared is 89.72%, suggesting that the model explains 89.72% of the '
+       'variability in the Sales data using the predictor (Features, i.e. Tv, Radio, and Newspaper)\n'
+       '\nMSE value indicates that the model\'s predictions that could be closer to the actual values.' )
+print ('-'*70)
+
+import statsmodels.formula.api as smf
+inf_stat = smf.ols(formula='Sales ~ TV+Radio+Newspaper', data= Ad_df).fit()
+print ('- Parameters:')
+print (inf_stat.params)
+print ()
+print ('- P-Values:')
+print (inf_stat.pvalues)
+print ('\nNewspaper can be omitted from the list of significant features owing to the p-value.')
+print ()
+print ('- Standard Errors:')
+print (inf_stat.bse)
+print ()
+print ('- Confidence Interval:\n', inf_stat.conf_int())
+print ()
+print ('- Error Covariance Matrix:\n', inf_stat.cov_params())
+print ()
+print (inf_stat.summary())
+print ('-'*70)
+
+#Scatter plot with overlaid regression line
+sns.lmplot(x= 'TV', y ='Sales', data = Ad_df)
+sns.lmplot(x= 'Radio', y ='Sales', data = Ad_df)
+sns.lmplot(x= 'Newspaper', y ='Sales', data = Ad_df)
+
+print ('-'*70)
+print ('Cross Validation and Bootstrapping.')
+Ad_df['TVandRadio'] = Ad_df['TV'] * Ad_df['Radio']
+Ad_df.drop(columns = ['Error','Sales_Predicted'], inplace=True)
+
+inf_stat1 =smf.ols(formula ='Sales ~ TV+Radio+Newspaper+TVandRadio', data= Ad_df).fit()
+print ('- Parameters:')
+print (inf_stat1.params)
+print ()
+print ('- P-Values:')
+print (inf_stat1.pvalues)
+print ('\nNewspaper can be omitted from the list of significant features owing to the p-value.')
+print ()
+print ('- Standard Errors:')
+print (inf_stat1.bse)
+print ()
+print ('- Confidence Interval:\n', inf_stat1.conf_int())
+print ()
+print ('- Error Covariance Matrix:\n', inf_stat1.cov_params())
+print ()
+print (inf_stat1.summary())
+print ('\nR-Squared has increased to 96.8%, suggesting that the model can explain 96.8% of the '
+       'variability in the Sales data using the predictor (Features, i.e. TV and Radio)\n')
+print ('-'*70)
+
